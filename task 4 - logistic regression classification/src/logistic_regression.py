@@ -309,6 +309,97 @@ def plot_sigmoid_curve(output_dir):
     print(f"Sigmoid curve saved successfully to: {save_path}")
 
 
+def tune_thresholds(y_test, y_prob, output_dir, thresholds=[0.3, 0.4, 0.5, 0.6, 0.7]):
+    """
+    Evaluate classification metrics across custom probability thresholds.
+    Plot Precision, Recall, and F1-score as functions of the threshold.
+    """
+    print("\n" + "=" * 70)
+    print("PHASE 6: CLASSIFICATION THRESHOLD TUNING")
+    print("=" * 70)
+
+    print("Explanation of Classification Thresholds:")
+    print("  - Default threshold = 0.5: If P(y=1) >= 0.5 -> predict Class 1, else Class 0.")
+    print("  - Lowering threshold (e.g., 0.3):")
+    print("      Model classifies samples as positive more easily.")
+    print("      Recall increases (fewer False Negatives), but Precision drops (more False Positives).")
+    print("  - Raising threshold (e.g., 0.7):")
+    print("      Model requires higher confidence before predicting positive.")
+    print("      Precision increases (fewer False Positives), but Recall drops (more False Negatives).")
+    print("  - Application Context:")
+    print("      In cancer diagnosis, missing a true case (False Negative) can be fatal,")
+    print("      so clinical settings often prioritize high Recall by lowering the threshold.")
+
+    # Evaluate specified discrete thresholds
+    records = []
+    print("\nDiscrete Threshold Evaluation Table:")
+    print("  Threshold | Precision | Recall  | F1-Score | Pred Class 0 | Pred Class 1")
+    print("  ------------------------------------------------------------------------")
+
+    for th in thresholds:
+        y_th_pred = (y_prob >= th).astype(int)
+        th_prec = precision_score(y_test, y_th_pred, zero_division=0)
+        th_rec = recall_score(y_test, y_th_pred, zero_division=0)
+        th_f1 = f1_score(y_test, y_th_pred, zero_division=0)
+        c0_count = (y_th_pred == 0).sum()
+        c1_count = (y_th_pred == 1).sum()
+
+        records.append({
+            "Threshold": th,
+            "Precision": th_prec,
+            "Recall": th_rec,
+            "F1-Score": th_f1,
+            "Pred_Class_0": c0_count,
+            "Pred_Class_1": c1_count
+        })
+        is_default = " (Default)" if th == 0.5 else ""
+        print(f"    {th:4.2f}    |  {th_prec:7.4f}  | {th_rec:7.4f} |  {th_f1:7.4f}  |      {c0_count:2d}      |      {c1_count:2d}    {is_default}")
+
+    df_thresholds = pd.DataFrame(records)
+
+    # Dense sweep for plotting smooth curves
+    dense_thresholds = np.linspace(0.05, 0.95, 100)
+    prec_list, rec_list, f1_list = [], [], []
+
+    for th in dense_thresholds:
+        y_th_pred = (y_prob >= th).astype(int)
+        prec_list.append(precision_score(y_test, y_th_pred, zero_division=0))
+        rec_list.append(recall_score(y_test, y_th_pred, zero_division=0))
+        f1_list.append(f1_score(y_th_pred == 1, y_test == 1, zero_division=0))
+
+    # Plot threshold analysis
+    save_path = os.path.join(output_dir, "threshold_analysis.png")
+    plt.figure(figsize=(9, 5.5), dpi=150)
+    plt.plot(dense_thresholds, prec_list, color="#1f77b4", linewidth=2.2, label="Precision")
+    plt.plot(dense_thresholds, rec_list, color="#2ca02c", linewidth=2.2, label="Recall")
+    plt.plot(dense_thresholds, f1_list, color="#ff7f0e", linewidth=2.0, linestyle="--", label="F1-Score")
+
+    # Mark tested discrete thresholds
+    for th in thresholds:
+        th_p = precision_score(y_test, (y_prob >= th).astype(int), zero_division=0)
+        th_r = recall_score(y_test, (y_prob >= th).astype(int), zero_division=0)
+        plt.scatter([th], [th_p], color="#1f77b4", s=40, zorder=4)
+        plt.scatter([th], [th_r], color="#2ca02c", s=40, zorder=4)
+
+    # Highlight default threshold
+    plt.axvline(0.5, color="#d62728", linestyle=":", linewidth=2, label="Default Threshold (0.5)")
+
+    plt.title("Threshold Analysis: Trade-off Between Precision and Recall", fontsize=14, fontweight="bold", pad=12)
+    plt.xlabel("Classification Probability Threshold", fontsize=12)
+    plt.ylabel("Metric Score", fontsize=12)
+    plt.xlim(0.0, 1.0)
+    plt.ylim(0.0, 1.05)
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend(loc="lower left", fontsize=10)
+    plt.tight_layout()
+
+    plt.savefig(save_path)
+    plt.close()
+    print(f"\nThreshold analysis plot saved successfully to: {save_path}")
+
+    return df_thresholds
+
+
 if __name__ == "__main__":
     # Define project results directory relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -320,6 +411,8 @@ if __name__ == "__main__":
     y_pred, y_prob = make_predictions(model, X_test_scaled)
     metrics = compute_classification_metrics(y_test, y_pred, y_prob)
     plot_sigmoid_curve(results_dir)
+    df_thresholds = tune_thresholds(y_test, y_prob, results_dir)
+
 
 
 
