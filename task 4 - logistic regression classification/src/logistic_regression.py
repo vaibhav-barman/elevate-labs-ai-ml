@@ -400,18 +400,156 @@ def tune_thresholds(y_test, y_prob, output_dir, thresholds=[0.3, 0.4, 0.5, 0.6, 
     return df_thresholds
 
 
+from sklearn.metrics import roc_curve
+import seaborn as sns
+
+
+def plot_confusion_matrix_heatmap(cm, target_names, output_dir):
+    """
+    Generate and save a visual confusion matrix heatmap.
+    """
+    save_path = os.path.join(output_dir, "confusion_matrix.png")
+    plt.figure(figsize=(7, 5.5), dpi=150)
+
+    # Format annotations with count and percentage
+    total = np.sum(cm)
+    annot = [
+        [f"TN = {cm[0, 0]}\n({cm[0, 0] / total:.1%})", f"FP = {cm[0, 1]}\n({cm[0, 1] / total:.1%})"],
+        [f"FN = {cm[1, 0]}\n({cm[1, 0] / total:.1%})", f"TP = {cm[1, 1]}\n({cm[1, 1] / total:.1%})"]
+    ]
+
+    sns.heatmap(
+        cm,
+        annot=annot,
+        fmt="",
+        cmap="Blues",
+        cbar=True,
+        xticklabels=[f"Pred {target_names[0].title()} (0)", f"Pred {target_names[1].title()} (1)"],
+        yticklabels=[f"Actual {target_names[0].title()} (0)", f"Actual {target_names[1].title()} (1)"],
+        annot_kws={"fontsize": 11, "fontweight": "bold"}
+    )
+
+    plt.title("Confusion Matrix — Logistic Regression", fontsize=14, fontweight="bold", pad=12)
+    plt.xlabel("Predicted Label", fontsize=11, labelpad=8)
+    plt.ylabel("Actual Label", fontsize=11, labelpad=8)
+    plt.tight_layout()
+
+    plt.savefig(save_path)
+    plt.close()
+    print(f"Confusion matrix plot saved successfully to: {save_path}")
+
+
+def plot_roc_curve_plot(y_test, y_prob, roc_auc, output_dir):
+    """
+    Generate and save the Receiver Operating Characteristic (ROC) curve.
+    """
+    fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+
+    save_path = os.path.join(output_dir, "roc_curve.png")
+    plt.figure(figsize=(7.5, 6), dpi=150)
+
+    # ROC curve
+    plt.plot(fpr, tpr, color="#1f77b4", linewidth=2.5, label=f"Logistic Regression (AUC = {roc_auc:.4f})")
+
+    # Random guessing baseline (diagonal line)
+    plt.plot([0, 1], [0, 1], color="#7f7f7f", linestyle="--", linewidth=1.5, label="Random Guess (AUC = 0.5000)")
+
+    # Mark default 0.5 threshold location on ROC curve
+    default_pred = (y_prob >= 0.5).astype(int)
+    default_tn, default_fp, default_fn, default_tp = confusion_matrix(y_test, default_pred).ravel()
+    default_fpr = default_fp / (default_fp + default_tn)
+    default_tpr = default_tp / (default_tp + default_fn)
+    plt.scatter([default_fpr], [default_tpr], color="#d62728", s=80, zorder=5, label=f"Default Threshold 0.5 (FPR={default_fpr:.3f}, TPR={default_tpr:.3f})")
+
+    plt.title("Receiver Operating Characteristic (ROC) Curve", fontsize=14, fontweight="bold", pad=12)
+    plt.xlabel("False Positive Rate (1 - Specificity)", fontsize=11)
+    plt.ylabel("True Positive Rate (Sensitivity / Recall)", fontsize=11)
+    plt.xlim([-0.02, 1.02])
+    plt.ylim([-0.02, 1.05])
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend(loc="lower right", fontsize=10)
+    plt.tight_layout()
+
+    plt.savefig(save_path)
+    plt.close()
+    print(f"ROC curve plot saved successfully to: {save_path}")
+
+
+def discuss_class_imbalance(y, target_names):
+    """
+    Phase 7: Discuss class imbalance issues, risks, and mitigation strategies.
+    """
+    print("\n" + "=" * 70)
+    print("PHASE 7: CLASS IMBALANCE DISCUSSION")
+    print("=" * 70)
+
+    c0_count = (y == 0).sum()
+    c1_count = (y == 1).sum()
+    total = len(y)
+
+    print(f"Dataset Class Distribution:")
+    print(f"  - Class 0 ({target_names[0]}): {c0_count:3d} ({c0_count / total:.2%})")
+    print(f"  - Class 1 ({target_names[1]}): {c1_count:3d} ({c1_count / total:.2%})")
+    print(f"  Ratio: approximately {c1_count / c0_count:.2f} : 1")
+
+    print("\nAnalysis of Class Imbalance Implications:")
+    print("  1. The Accuracy Paradox:")
+    print("     If a dataset is 95% majority class and 5% minority class, a naive model")
+    print("     predicting only the majority class achieves 95% accuracy while being completely useless.")
+    print("     Therefore, accuracy alone is deceptive on imbalanced datasets.")
+
+    print("\n  2. Precision, Recall, and F1-Score:")
+    print("     - Precision focuses on the quality of positive predictions.")
+    print("     - Recall focuses on capturing all actual positive cases.")
+    print("     - F1-Score provides their harmonic mean, balancing both.")
+
+    print("\n  3. ROC-AUC vs PR-AUC:")
+    print("     - ROC-AUC measures ranking ability across all thresholds.")
+    print("     - In extreme imbalance, Precision-Recall AUC (PR-AUC) is often preferred")
+    print("       because ROC-AUC can remain overly optimistic when True Negatives are enormous.")
+
+    print("\n  4. Mitigation Strategies:")
+    print("     - Stratified Splitting: Uses `stratify=y` to preserve minority class proportion.")
+    print("     - Cost-Sensitive Learning: Using `class_weight='balanced'` in LogisticRegression")
+    print("       inversely scales weights proportional to class frequencies:")
+    print("         w_j = n_samples / (n_classes * n_samples_j)")
+    print("     - Resampling Techniques: SMOTE, random oversampling, or random undersampling.")
+    print("     - Threshold Adjustment: Tuning the decision threshold to favor recall on the critical class.")
+
+
 if __name__ == "__main__":
     # Define project results directory relative to this script
     script_dir = os.path.dirname(os.path.abspath(__file__))
     results_dir = os.path.join(script_dir, "..", "results")
 
+    # Phase 1: Load and inspect dataset
     X, y, feature_names, target_names = load_and_inspect_dataset()
+
+    # Phase 2: Split and scale data (avoiding data leakage)
     X_train_scaled, X_test_scaled, y_train, y_test, scaler = prepare_data(X, y)
+
+    # Phase 3: Train model and generate predictions
     model = train_logistic_regression(X_train_scaled, y_train)
     y_pred, y_prob = make_predictions(model, X_test_scaled)
+
+    # Phase 4 & 5: Compute metrics and plot sigmoid curve
     metrics = compute_classification_metrics(y_test, y_pred, y_prob)
     plot_sigmoid_curve(results_dir)
+
+    # Phase 6: Threshold tuning and visualization
     df_thresholds = tune_thresholds(y_test, y_prob, results_dir)
+
+    # Model Visualizations
+    plot_confusion_matrix_heatmap(metrics["cm"], target_names, results_dir)
+    plot_roc_curve_plot(y_test, y_prob, metrics["roc_auc"], results_dir)
+
+    # Phase 7: Class imbalance discussion
+    discuss_class_imbalance(y, target_names)
+
+    print("\n" + "=" * 70)
+    print("TASK 4 PIPELINE EXECUTION COMPLETE")
+    print("=" * 70)
+
 
 
 
