@@ -165,10 +165,79 @@ def make_predictions(model, X_test_scaled):
     return y_pred, y_prob
 
 
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    confusion_matrix,
+    classification_report
+)
+
+
+def compute_classification_metrics(y_test, y_pred, y_prob):
+    """
+    Calculate core evaluation metrics:
+    Accuracy, Precision, Recall, F1-Score, and ROC-AUC.
+    Break down the confusion matrix into TN, FP, FN, and TP.
+    """
+    print("\n" + "=" * 70)
+    print("PHASE 4: MODEL EVALUATION METRICS")
+    print("=" * 70)
+
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred)
+    rec = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc_auc = roc_auc_score(y_test, y_prob)
+
+    print("Core Classification Metrics:")
+    print(f"  Accuracy : {acc:.4f} ({acc * 100:.2f}%)")
+    print(f"  Precision: {prec:.4f} ({prec * 100:.2f}%)")
+    print(f"  Recall   : {rec:.4f} ({rec * 100:.2f}%)")
+    print(f"  F1-Score : {f1:.4f}")
+    print(f"  ROC-AUC  : {roc_auc:.4f}")
+
+    # Confusion Matrix Breakdown
+    cm = confusion_matrix(y_test, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+
+    print("\nConfusion Matrix:")
+    print("                Predicted Malignant (0)  Predicted Benign (1)")
+    print(f"Actual Malignant (0)         {tn:3d} (TN)                 {fp:3d} (FP)")
+    print(f"Actual Benign (1)            {fn:3d} (FN)                 {tp:3d} (TP)")
+
+    print("\nConfusion Matrix Components Explanation:")
+    print(f"  - True Negative  (TN) = {tn:2d}: Correctly diagnosed as Malignant (Class 0).")
+    print(f"  - False Positive (FP) = {fp:2d}: Type I error. Actually Malignant, falsely flagged as Benign.")
+    print(f"  - False Negative (FN) = {fn:2d}: Type II error. Actually Benign, falsely flagged as Malignant.")
+    print(f"  - True Positive  (TP) = {tp:2d}: Correctly diagnosed as Benign (Class 1).")
+
+    print("\nDetailed Scikit-Learn Classification Report:")
+    print(classification_report(y_test, y_pred, target_names=["Malignant (0)", "Benign (1)"]))
+
+    metrics = {
+        "accuracy": acc,
+        "precision": prec,
+        "recall": rec,
+        "f1": f1,
+        "roc_auc": roc_auc,
+        "cm": cm,
+        "tn": tn,
+        "fp": fp,
+        "fn": fn,
+        "tp": tp
+    }
+    return metrics
+
+
 if __name__ == "__main__":
     X, y, feature_names, target_names = load_and_inspect_dataset()
     X_train_scaled, X_test_scaled, y_train, y_test, scaler = prepare_data(X, y)
     model = train_logistic_regression(X_train_scaled, y_train)
     y_pred, y_prob = make_predictions(model, X_test_scaled)
+    metrics = compute_classification_metrics(y_test, y_pred, y_prob)
+
 
 
