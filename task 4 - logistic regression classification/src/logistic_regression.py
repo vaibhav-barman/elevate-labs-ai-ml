@@ -103,7 +103,72 @@ def prepare_data(X, y, test_size=0.2, random_state=42):
     return X_train_scaled, X_test_scaled, y_train, y_test, scaler
 
 
+from sklearn.linear_model import LogisticRegression
+
+
+def train_logistic_regression(X_train_scaled, y_train, random_state=42):
+    """
+    Train a Logistic Regression model on the standardized training data.
+    Inspect the learned coefficients and intercept.
+    """
+    print("\n" + "=" * 70)
+    print("PHASE 3: LOGISTIC REGRESSION MODEL TRAINING")
+    print("=" * 70)
+
+    # Initialize Logistic Regression with reproducible random_state
+    model = LogisticRegression(random_state=random_state, max_iter=1000)
+    model.fit(X_train_scaled, y_train)
+
+    print("Model successfully trained.")
+    print(f"Number of iterations to converge: {model.n_iter_[0]}")
+    print(f"Model intercept (b)             : {model.intercept_[0]:.4f}")
+    print(f"Number of coefficients (weights): {len(model.coef_[0])}")
+
+    # Inspect top 3 positive and top 3 negative coefficients
+    coef_series = pd.Series(model.coef_[0], index=feature_names).sort_values()
+    print("\nTop 3 features pushing towards Class 0 (Malignant, negative weights):")
+    for feat, val in coef_series.head(3).items():
+        print(f"  {feat:25s}: {val:+.4f}")
+
+    print("\nTop 3 features pushing towards Class 1 (Benign, positive weights):")
+    for feat, val in coef_series.tail(3).items():
+        print(f"  {feat:25s}: {val:+.4f}")
+
+    return model
+
+
+def make_predictions(model, X_test_scaled):
+    """
+    Generate discrete class predictions and continuous probability predictions.
+    """
+    print("\n" + "-" * 70)
+    print("GENERATING MODEL PREDICTIONS")
+    print("-" * 70)
+
+    # Discrete class predictions (default threshold = 0.5)
+    y_pred = model.predict(X_test_scaled)
+
+    # Continuous probability predictions for both classes [P(class 0), P(class 1)]
+    y_prob_all = model.predict_proba(X_test_scaled)
+
+    # Probability of positive class (Class 1: Benign)
+    y_prob = y_prob_all[:, 1]
+
+    print("Predictions generated for test set:")
+    print(f"  Predicted class counts: Class 0={(y_pred == 0).sum()}, Class 1={(y_pred == 1).sum()}")
+    print("\nFirst 5 test sample probabilities and assigned class:")
+    print("  Index | P(Malignant / 0) | P(Benign / 1) | Predicted Class")
+    print("  ----------------------------------------------------------")
+    for i in range(5):
+        print(f"    {i:2d}  |      {y_prob_all[i, 0]:.4f}      |    {y_prob[i]:.4f}     |      {y_pred[i]} ({target_names[y_pred[i]]})")
+
+    return y_pred, y_prob
+
+
 if __name__ == "__main__":
     X, y, feature_names, target_names = load_and_inspect_dataset()
     X_train_scaled, X_test_scaled, y_train, y_test, scaler = prepare_data(X, y)
+    model = train_logistic_regression(X_train_scaled, y_train)
+    y_pred, y_prob = make_predictions(model, X_test_scaled)
+
 
