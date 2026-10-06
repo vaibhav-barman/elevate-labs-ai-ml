@@ -232,12 +232,95 @@ def compute_classification_metrics(y_test, y_pred, y_prob):
     return metrics
 
 
+import os
+import matplotlib.pyplot as plt
+
+
+def plot_sigmoid_curve(output_dir):
+    """
+    Explain and visualize the Sigmoid Activation Function:
+    sigma(z) = 1 / (1 + e^(-z))
+    """
+    print("\n" + "=" * 70)
+    print("PHASE 5: SIGMOID ACTIVATION FUNCTION")
+    print("=" * 70)
+
+    print("Mathematical formulation:")
+    print("  sigma(z) = 1 / (1 + exp(-z))")
+    print("\nKey concepts:")
+    print("  1. What z represents:")
+    print("     z = w^T * x + b = w_1*x_1 + w_2*x_2 + ... + w_n*x_n + b")
+    print("     z is the linear combination of weighted features plus bias (log-odds).")
+    print("  2. S-shaped squashing property:")
+    print("     - As z -> +infinity, exp(-z) -> 0, sigma(z) -> 1")
+    print("     - As z -> -infinity, exp(-z) -> +infinity, sigma(z) -> 0")
+    print("     - When z = 0, sigma(0) = 1 / (1 + 1) = 0.5")
+    print("     The output is strictly bounded in the open interval (0, 1).")
+    print("  3. Probability interpretation:")
+    print("     P(y = 1 | x) = sigma(z)")
+    print("     P(y = 0 | x) = 1 - sigma(z)")
+    print("  4. Decision rule:")
+    print("     y_hat = 1 if P(y = 1 | x) >= threshold (default 0.5, i.e., z >= 0)")
+    print("     y_hat = 0 otherwise (i.e., z < 0)")
+
+    # Generate z values
+    z = np.linspace(-10, 10, 500)
+    sigma_z = 1 / (1 + np.exp(-z))
+
+    # Plot Sigmoid Curve
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.join(output_dir, "sigmoid_curve.png")
+
+    plt.figure(figsize=(9, 5.5), dpi=150)
+    plt.plot(z, sigma_z, color="#1f77b4", linewidth=2.5, label=r"$\sigma(z) = \frac{1}{1 + e^{-z}}$")
+
+    # Key threshold and reference lines
+    plt.axhline(0.5, color="#d62728", linestyle="--", alpha=0.8, label="Default Threshold: P = 0.5 (z = 0)")
+    plt.axvline(0.0, color="#7f7f7f", linestyle=":", alpha=0.7)
+    plt.axhline(1.0, color="#2ca02c", linestyle=":", alpha=0.5, label="Upper Asymptote (P = 1.0)")
+    plt.axhline(0.0, color="#9467bd", linestyle=":", alpha=0.5, label="Lower Asymptote (P = 0.0)")
+
+    # Decision regions
+    plt.fill_between(z, 0, 1, where=(z >= 0), color="#2ca02c", alpha=0.08, label="Class 1 Region (z >= 0, P >= 0.5)")
+    plt.fill_between(z, 0, 1, where=(z < 0), color="#d62728", alpha=0.08, label="Class 0 Region (z < 0, P < 0.5)")
+
+    # Annotate inflection point
+    plt.scatter([0], [0.5], color="#d62728", s=80, zorder=5)
+    plt.annotate(
+        "Inflection Point\n(z=0, P=0.5)",
+        xy=(0, 0.5),
+        xytext=(1.5, 0.40),
+        arrowprops=dict(facecolor="#333333", arrowstyle="->", lw=1.2),
+        fontsize=10,
+        fontweight="bold"
+    )
+
+    plt.title("Sigmoid (Logistic) Activation Function", fontsize=14, fontweight="bold", pad=12)
+    plt.xlabel("Log-Odds: $z = w^T x + b$", fontsize=12)
+    plt.ylabel(r"Predicted Probability: $P(y = 1 \mid x)$", fontsize=12)
+    plt.xlim(-10, 10)
+    plt.ylim(-0.05, 1.05)
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend(loc="lower right", fontsize=9.5)
+    plt.tight_layout()
+
+    plt.savefig(save_path)
+    plt.close()
+    print(f"Sigmoid curve saved successfully to: {save_path}")
+
+
 if __name__ == "__main__":
+    # Define project results directory relative to this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    results_dir = os.path.join(script_dir, "..", "results")
+
     X, y, feature_names, target_names = load_and_inspect_dataset()
     X_train_scaled, X_test_scaled, y_train, y_test, scaler = prepare_data(X, y)
     model = train_logistic_regression(X_train_scaled, y_train)
     y_pred, y_prob = make_predictions(model, X_test_scaled)
     metrics = compute_classification_metrics(y_test, y_pred, y_prob)
+    plot_sigmoid_curve(results_dir)
+
 
 
 
